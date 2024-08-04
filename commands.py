@@ -4,18 +4,9 @@ import click
 from os.path import isfile
 
 from helper import find_linked_files, prepare_context
+from constants import template, path_example, prompt_get_controller_path, prompt_get_curl_commands
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
-
-template = """
-Answer the question below
-
-Here is the conversation history: {context}
-
-Question: {question}
-
-Answer: 
-"""
 
 model = OllamaLLM(model="codeqwen:7b")
 
@@ -33,24 +24,13 @@ def predict(project_dir):
     for i in range(0, 12):
         all_files += glob.glob(f"{project_dir}{'*/' * i}*.java")
 
-    path_example = """
-        Example:
-        Correct:
-        /path/to/file1.java
-        /path/to/file2.java
-
-        Incorrect:
-        1. /path/to/file1.java
-        2. /path/to/file2.java\n
-    """
-
     prompt = ChatPromptTemplate.from_template(template)
 
     chain = prompt | model
     result = chain.invoke(
         {
             "context": "\n".join(all_files) + path_example,
-            "question": "Given the set of files, which of them most likey are api server controller files? The file path may have words like controller, client, api in them. Do not include any extra text, bullets, or numbering. Just list the file paths separated by a new line."
+            "question": prompt_get_controller_path
         }
     )
     result = re.sub(r'(\d+\.\s*|- |```|\* |`)', '', result)
@@ -70,7 +50,7 @@ def predict(project_dir):
             api_details = chain.invoke(
                 {
                     "context": context,
-                    "question": "Analyze the code and identify all instances of API endpoints with their respective HTTP methods. Additionally, consider any dynamic paths or variables within the annotations. Please extract and return the list of these endpoints as curl command separated by newlines and dont print any help text."
+                    "question": prompt_get_curl_commands
                 }
             )
             api_details = re.sub(r'(\d+\.\s*|- |```)', '', api_details)
